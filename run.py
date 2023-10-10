@@ -46,6 +46,7 @@ RISK_FACTOR = float(os.environ.get("RISK_FACTOR"))
 # CONTRACT SIZES
 
 
+
 # Helper Functions
 def ParseSignal(signal: str) -> dict:
     """Starts process of parsing signal and entering trade on MetaTrader account.
@@ -237,6 +238,7 @@ async def ConnectMetaTrader(update: Update, trade: dict, enterTrade: bool):
         # obtains account information from MetaTrader server
         account_information = await connection.get_account_information()
         contract_size =  await connection.get_symbol_specification(trade['Symbol'])
+        
         update.effective_message.reply_text("Successfully connected to MetaTrader!\nCalculating trade risk ... 🤔")
 
         # checks if the order is a market execution to get the current price of symbol
@@ -252,7 +254,7 @@ async def ConnectMetaTrader(update: Update, trade: dict, enterTrade: bool):
                 trade['Entry'] = float(price['ask'])
 
         # produces a table with trade information
-        GetTradeInformation(update, trade, account_information['balance'],contract_size)
+        GetTradeInformation(update, trade, account_information['balance'],contract_size['contractSize'])
             
         # checks if the user has indicated to enter trade
         if(enterTrade == True):
