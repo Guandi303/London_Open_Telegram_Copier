@@ -512,33 +512,32 @@ def Calculation_Command(update: Update, context: CallbackContext) -> int:
 
 def main() -> None:
     """Runs the Telegram bot."""
-
     updater = Updater(TOKEN, use_context=True)
 
     # get the dispatcher to register handlers
     dp = updater.dispatcher
 
     # message handler
-    dp.add_handler(CommandHandler("start", welcome))
+    #dp.add_handler(CommandHandler("start", welcome))
 
     # help command handler
     dp.add_handler(CommandHandler("help", help))
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("trade", Trade_Command), CommandHandler("calculate", Calculation_Command)],
-        states={
-            TRADE: [MessageHandler(Filters.text & ~Filters.command, PlaceTrade)],
-            CALCULATE: [MessageHandler(Filters.text & ~Filters.command, CalculateTrade)],
-            DECISION: [CommandHandler("yes", PlaceTrade), CommandHandler("no", cancel)]
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
+    #conv_handler = ConversationHandler(
+     #   entry_points=[CommandHandler("trade", Trade_Command), CommandHandler("calculate", Calculation_Command)],
+     #   states={
+     #       TRADE: [MessageHandler(Filters.text & ~Filters.command, PlaceTrade)],
+     #       CALCULATE: [MessageHandler(Filters.text & ~Filters.command, CalculateTrade)],
+     #       DECISION: [CommandHandler("yes", PlaceTrade), CommandHandler("no", cancel)]
+     #   },
+    #    fallbacks=[CommandHandler("cancel", cancel)],
+    #)
 
     # conversation handler for entering trade or calculating trade information
-    dp.add_handler(conv_handler)
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, PlaceTrade))
 
     # message handler for all messages that are not included in conversation handler
-    dp.add_handler(MessageHandler(Filters.text,Trade_Command))
+    dp.add_handler(MessageHandler(Filters.text,unknown_command))
 
     # log all errors
     dp.add_error_handler(error)
