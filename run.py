@@ -45,7 +45,6 @@ RISK_FACTOR = float(os.environ.get("RISK_FACTOR"))
 
 # CONTRACT SIZES
 
-XAG_CSIZE = int(os.environ.get("XAG_CSIZE"))
 
 # Helper Functions
 def ParseSignal(signal: str) -> dict:
