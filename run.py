@@ -512,7 +512,7 @@ def Calculation_Command(update: Update, context: CallbackContext) -> int:
 
 def main() -> None:
     """Runs the Telegram bot."""
-    updater = Updater(TOKEN, use_context=True)
+    updater = Updater(TOKEN, use_context=False)
 
     # get the dispatcher to register handlers
     dp = updater.dispatcher
