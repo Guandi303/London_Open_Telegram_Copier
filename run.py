@@ -12,7 +12,40 @@ except ImportError:
 from metaapi_cloud_sdk import MetaApi
 from prettytable import PrettyTable
 from telegram import ParseMode, Update
+from telegram.client import Telegram
 from telegram.ext import CommandHandler, Filters, MessageHandler, Updater, ConversationHandler, CallbackContext
+
+#!/usr/bin/env python3
+import asyncio
+import logging
+import math
+import os
+
+
+from telegram.client import Telegram
+from telethon import TelegramClient, events, sync
+import configparser
+import json
+import re
+from telethon.errors import SessionPasswordNeededError
+from telethon import TelegramClient, events, sync
+from telethon.tl.functions.messages import (GetHistoryRequest)
+from telethon.tl.types import (
+PeerChannel
+)
+
+user_input_channel = 'https://t.me/+0Dxs5_QuB-M5N2Qy'
+username = '@martinbauer6'
+
+# Remember to use your own values from my.telegram.org!
+api_id = 23529496
+api_hash = '7c0d5d708cb51581f4164eacc103cc38'
+# Create the client and connect
+client = TelegramClient(username, api_id, api_hash)
+
+
+
+
 
 # MetaAPI Credentials
 API_KEY = os.environ.get("API_KEY")
@@ -44,8 +77,6 @@ SYMBOLS = ['AUDCAD', 'AUDCHF', 'AUDJPY', 'AUDNZD', 'AUDUSD', 'CADCHF', 'CADJPY',
 RISK_FACTOR = float(os.environ.get("RISK_FACTOR"))
 
 # CONTRACT SIZES
-
-
 
 # Helper Functions
 def ParseSignal(signal: str) -> dict:
@@ -510,7 +541,214 @@ def Calculation_Command(update: Update, context: CallbackContext) -> int:
     return CALCULATE
 
 
-def main() -> None:
+#PlaceTrade DONE
+#ParseSignal DONE
+#ConnectMetaTrader DONE
+#GetTradeInformation DONE
+
+def GetTradeInformationNew(trade: dict, balance: float,pContract_size:int) -> None:
+    """Calculates information from given trade including stop loss and take profit in pips, posiition size, and potential loss/profit.
+
+    Arguments:
+        update: update from Telegram
+        trade: dictionary that stores trade information
+        balance: current balance of the MetaTrader account
+    """
+
+
+
+    if(str(trade['Entry']).index('.') >= 2):
+        multiplier = 0.01
+        #0.001 #10000
+    else:
+        multiplier=10/pContract_size
+        #0.0001 #100000
+    
+    
+
+    # calculates the stop loss in pips
+    stopLossPips = abs(round((trade['StopLoss'] - trade['Entry']) / multiplier))
+
+    # calculates the position size using stop loss and RISK FACTOR
+    trade['PositionSize'] = math.floor(((balance * trade['RiskFactor']) / stopLossPips) / 10 * 100) / 100
+
+    # calculates the take profit(s) in pips
+    takeProfitPips = []
+    for takeProfit in trade['TP']:
+        takeProfitPips.append(abs(round((takeProfit - trade['Entry']) / multiplier)))
+
+    # creates table with trade information
+    #table = CreateTable(trade, balance, stopLossPips, takeProfitPips)
+    
+    # sends user trade information and calcualted risk
+    #update.effective_message.reply_text(f'<pre>{table}</pre>', parse_mode=ParseMode.HTML)
+
+    return
+
+
+async def ConnectMetaTraderNew(trade: dict, enterTrade: bool):
+    """Attempts connection to MetaAPI and MetaTrader to place trade.
+
+    Arguments:
+        update: update from Telegram
+        trade: dictionary that stores trade information
+
+    Returns:
+        A coroutine that confirms that the connection to MetaAPI/MetaTrader and trade placement were successful
+    """
+
+    # creates connection to MetaAPI
+    api = MetaApi(API_KEY)
+    
+    try:
+        account = await api.metatrader_account_api.get_account(ACCOUNT_ID)
+        initial_state = account.state
+        deployed_states = ['DEPLOYING', 'DEPLOYED']
+
+        if initial_state not in deployed_states:
+            #  wait until account is deployed and connected to broker
+            logger.info('Deploying account')
+            await account.deploy()
+
+        logger.info('Waiting for API server to connect to broker ...')
+        await account.wait_connected()
+
+        # connect to MetaApi API
+        connection = account.get_rpc_connection()
+        await connection.connect()
+
+        # wait until terminal state synchronized to the local state
+        logger.info('Waiting for SDK to synchronize to terminal state ...')
+        await connection.wait_synchronized()
+
+        # obtains account information from MetaTrader server
+        account_information = await connection.get_account_information()
+        contract_size =  await connection.get_symbol_specification(trade['Symbol'])
+        
+        #update.effective_message.reply_text("Successfully connected to MetaTrader!\nCalculating trade risk ... 🤔")
+
+        # checks if the order is a market execution to get the current price of symbol
+        if(trade['Entry'] == 'NOW'):
+            price = await connection.get_symbol_price(symbol=trade['Symbol'])
+
+            # uses bid price if the order type is a buy
+            if(trade['OrderType'] == 'Buy'):
+                trade['Entry'] = float(price['bid'])
+
+            # uses ask price if the order type is a sell
+            if(trade['OrderType'] == 'Sell'):
+                trade['Entry'] = float(price['ask'])
+
+        # produces a table with trade information
+        GetTradeInformationNew(trade, account_information['balance'],contract_size['contractSize'])
+            
+        # checks if the user has indicated to enter trade
+        if(enterTrade == True):
+
+            # enters trade on to MetaTrader account
+            #update.effective_message.reply_text("Entering trade on MetaTrader Account ... 👨🏾‍💻")
+
+            try:
+                # executes buy market execution order
+                if(trade['OrderType'] == 'Buy'):
+                    for takeProfit in trade['TP']:
+                        result = await connection.create_market_buy_order(trade['Symbol'], trade['PositionSize'] / len(trade['TP']), trade['StopLoss'], takeProfit)
+
+                # executes buy limit order
+                elif(trade['OrderType'] == 'Buy Limit'):
+                    for takeProfit in trade['TP']:
+                        result = await connection.create_limit_buy_order(trade['Symbol'], trade['PositionSize'] / len(trade['TP']), trade['Entry'], trade['StopLoss'], takeProfit)
+
+                # executes buy stop order
+                elif(trade['OrderType'] == 'Buy Stop'):
+                    for takeProfit in trade['TP']:
+                        result = await connection.create_stop_buy_order(trade['Symbol'], trade['PositionSize'] / len(trade['TP']), trade['Entry'], trade['StopLoss'], takeProfit)
+
+                # executes sell market execution order
+                elif(trade['OrderType'] == 'Sell'):
+                    for takeProfit in trade['TP']:
+                        result = await connection.create_market_sell_order(trade['Symbol'], trade['PositionSize'] / len(trade['TP']), trade['StopLoss'], takeProfit)
+
+                # executes sell limit order
+                elif(trade['OrderType'] == 'Sell Limit'):
+                    for takeProfit in trade['TP']:
+                        result = await connection.create_limit_sell_order(trade['Symbol'], trade['PositionSize'] / len(trade['TP']), trade['Entry'], trade['StopLoss'], takeProfit)
+
+                # executes sell stop order
+                elif(trade['OrderType'] == 'Sell Stop'):
+                    for takeProfit in trade['TP']:
+                        result = await connection.create_stop_sell_order(trade['Symbol'], trade['PositionSize'] / len(trade['TP']), trade['Entry'], trade['StopLoss'], takeProfit)
+                
+                # sends success message to user
+                #update.effective_message.reply_text("Trade entered successfully! 💰")
+                
+                # prints success message to console
+                logger.info('\nTrade entered successfully!')
+                logger.info('Result Code: {}\n'.format(result['stringCode']))
+            
+            except Exception as error:
+                logger.info(f"\nTrade failed with error: {error}\n")
+                #update.effective_message.reply_text(f"There was an issue 😕\n\nError Message:\n{error}")
+    
+    except Exception as error:
+        logger.error(f'Error: {error}')
+        #update.effective_message.reply_text(f"There was an issue with the connection 😕\n\nError Message:\n{error}")
+    
+    return
+
+
+def PlaceTradeNew(message:str) -> int:
+    """Parses trade and places on MetaTrader account.   
+    
+    Arguments:
+        update: update from Telegram
+        context: CallbackContext object that stores commonly used objects in handler callbacks
+    """
+
+    # checks if the trade has already been parsed or not
+
+    try: 
+        # parses signal from Telegram message
+        trade = ParseSignal(message)
+        
+        # checks if there was an issue with parsing the trade
+        if(not(trade)):
+            raise Exception('Invalid Trade')
+
+        # sets the user context trade equal to the parsed trade
+        #context.user_data['trade'] = trade
+        # update.effective_message.reply_text("Trade Successfully Parsed! 🥳\nConnecting to MetaTrader ... \n(May take a while) ⏰")
+    
+    except Exception as error:
+        logger.error(f'Error: {error}')
+        #errorMessage = f"There was an error parsing this trade 😕\n\nError: {error}\n\nPlease re-enter trade with this format:\n\nBUY/SELL SYMBOL\nEntry \nSL \nTP \n\nOr use the /cancel to command to cancel this action."
+        #update.effective_message.reply_text(errorMessage)
+
+        # returns to TRADE state to reattempt trade parsing
+        return 
+
+    # attempts connection to MetaTrader and places trade
+    asyncio.run(ConnectMetaTraderNew(trade, True))
+    
+    # removes trade from user context data
+    #context.user_data['trade'] = None
+
+    return
+
+
+
+
+@client.on(events.NewMessage(chats=user_input_channel))
+
+async def NewMessageListener(event):
+    #updater = Updater(TOKEN, use_context=True)
+    newMessage= event.message.message
+    PlaceTradeNew(newMessage)
+    
+
+
+
+#def main() -> None:
     """Runs the Telegram bot."""
     updater = Updater(TOKEN, use_context=True)
 
@@ -549,5 +787,5 @@ def main() -> None:
     return
 
 
-if __name__ == '__main__':
-    main()
+client.start()
+client.run_until_disconnected()
