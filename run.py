@@ -38,8 +38,11 @@ username = '@martinbauer6'
 # Remember to use your own values from my.telegram.org!
 api_id = 23529496
 api_hash = '7c0d5d708cb51581f4164eacc103cc38'
+bot_token= '5919610376:AAFDwjMmauMnT_sqG4jdy6nkMVbO0WqY42A'
+
 # Create the client and connect
-client = TelegramClient(username, api_id, api_hash)
+#client = TelegramClient(username, api_id, api_hash)
+client = TelegramClient('ea_lo_bot', api_id, api_hash).start(bot_token=bot_token)
 
 
 
