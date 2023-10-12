@@ -12,7 +12,6 @@ except ImportError:
 from metaapi_cloud_sdk import MetaApi
 from prettytable import PrettyTable
 from telegram import ParseMode, Update
-from telegram.client import Telegram
 from telegram.ext import CommandHandler, Filters, MessageHandler, Updater, ConversationHandler, CallbackContext
 
 #!/usr/bin/env python3
@@ -22,7 +21,6 @@ import math
 import os
 
 
-from telegram.client import Telegram
 from telethon import TelegramClient, events, sync
 import configparser
 import json
@@ -63,8 +61,8 @@ PORT = int(os.environ.get('PORT', '8443'))
 
 
 # Enables logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+#logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+#logger = logging.getLogger(__name__)
 
 # possibles states for conversation handler
 CALCULATE, TRADE, DECISION = range(3)
@@ -252,10 +250,10 @@ async def ConnectMetaTrader(update: Update, trade: dict, enterTrade: bool):
 
         if initial_state not in deployed_states:
             #  wait until account is deployed and connected to broker
-            logger.info('Deploying account')
+            #logger.info('Deploying account')
             await account.deploy()
 
-        logger.info('Waiting for API server to connect to broker ...')
+        #logger.info('Waiting for API server to connect to broker ...')
         await account.wait_connected()
 
         # connect to MetaApi API
@@ -263,7 +261,7 @@ async def ConnectMetaTrader(update: Update, trade: dict, enterTrade: bool):
         await connection.connect()
 
         # wait until terminal state synchronized to the local state
-        logger.info('Waiting for SDK to synchronize to terminal state ...')
+        #logger.info('Waiting for SDK to synchronize to terminal state ...')
         await connection.wait_synchronized()
 
         # obtains account information from MetaTrader server
@@ -328,15 +326,15 @@ async def ConnectMetaTrader(update: Update, trade: dict, enterTrade: bool):
                 update.effective_message.reply_text("Trade entered successfully! 💰")
                 
                 # prints success message to console
-                logger.info('\nTrade entered successfully!')
-                logger.info('Result Code: {}\n'.format(result['stringCode']))
+                #logger.info('\nTrade entered successfully!')
+                #logger.info('Result Code: {}\n'.format(result['stringCode']))
             
             except Exception as error:
-                logger.info(f"\nTrade failed with error: {error}\n")
+                #logger.info(f"\nTrade failed with error: {error}\n")
                 update.effective_message.reply_text(f"There was an issue 😕\n\nError Message:\n{error}")
     
     except Exception as error:
-        logger.error(f'Error: {error}')
+        #logger.error(f'Error: {error}')
         update.effective_message.reply_text(f"There was an issue with the connection 😕\n\nError Message:\n{error}")
     
     return
@@ -367,7 +365,7 @@ def PlaceTrade(update: Update, context: CallbackContext) -> int:
             update.effective_message.reply_text("Trade Successfully Parsed! 🥳\nConnecting to MetaTrader ... \n(May take a while) ⏰")
         
         except Exception as error:
-            logger.error(f'Error: {error}')
+            #logger.error(f'Error: {error}')
             errorMessage = f"There was an error parsing this trade 😕\n\nError: {error}\n\nPlease re-enter trade with this format:\n\nBUY/SELL SYMBOL\nEntry \nSL \nTP \n\nOr use the /cancel to command to cancel this action."
             update.effective_message.reply_text(errorMessage)
 
@@ -406,7 +404,7 @@ def CalculateTrade(update: Update, context: CallbackContext) -> int:
             update.effective_message.reply_text("Trade Successfully Parsed! 🥳\nConnecting to MetaTrader ... (May take a while) ⏰")
         
         except Exception as error:
-            logger.error(f'Error: {error}')
+            #logger.error(f'Error: {error}')
             errorMessage = f"There was an error parsing this trade 😕\n\nError: {error}\n\nPlease re-enter trade with this format:\n\nBUY/SELL SYMBOL\nEntry \nSL \nTP \n\nOr use the /cancel to command to cancel this action."
             update.effective_message.reply_text(errorMessage)
 
@@ -498,7 +496,7 @@ def error(update: Update, context: CallbackContext) -> None:
         context: CallbackContext object that stores commonly used objects in handler callbacks
     """
 
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
+    #logger.warning('Update "%s" caused error "%s"', update, context.error)
 
     return
 
@@ -607,10 +605,10 @@ async def ConnectMetaTraderNew(trade: dict, enterTrade: bool):
 
         if initial_state not in deployed_states:
             #  wait until account is deployed and connected to broker
-            logger.info('Deploying account')
+            #logger.info('Deploying account')
             await account.deploy()
 
-        logger.info('Waiting for API server to connect to broker ...')
+        #logger.info('Waiting for API server to connect to broker ...')
         await account.wait_connected()
 
         # connect to MetaApi API
@@ -618,7 +616,7 @@ async def ConnectMetaTraderNew(trade: dict, enterTrade: bool):
         await connection.connect()
 
         # wait until terminal state synchronized to the local state
-        logger.info('Waiting for SDK to synchronize to terminal state ...')
+        #logger.info('Waiting for SDK to synchronize to terminal state ...')
         await connection.wait_synchronized()
 
         # obtains account information from MetaTrader server
@@ -683,15 +681,15 @@ async def ConnectMetaTraderNew(trade: dict, enterTrade: bool):
                 #update.effective_message.reply_text("Trade entered successfully! 💰")
                 
                 # prints success message to console
-                logger.info('\nTrade entered successfully!')
-                logger.info('Result Code: {}\n'.format(result['stringCode']))
+                #logger.info('\nTrade entered successfully!')
+                #logger.info('Result Code: {}\n'.format(result['stringCode']))
             
             except Exception as error:
-                logger.info(f"\nTrade failed with error: {error}\n")
+                print('error')
                 #update.effective_message.reply_text(f"There was an issue 😕\n\nError Message:\n{error}")
     
     except Exception as error:
-        logger.error(f'Error: {error}')
+        print('error')
         #update.effective_message.reply_text(f"There was an issue with the connection 😕\n\nError Message:\n{error}")
     
     return
@@ -720,7 +718,7 @@ def PlaceTradeNew(message:str) -> int:
         # update.effective_message.reply_text("Trade Successfully Parsed! 🥳\nConnecting to MetaTrader ... \n(May take a while) ⏰")
     
     except Exception as error:
-        logger.error(f'Error: {error}')
+        print('error')
         #errorMessage = f"There was an error parsing this trade 😕\n\nError: {error}\n\nPlease re-enter trade with this format:\n\nBUY/SELL SYMBOL\nEntry \nSL \nTP \n\nOr use the /cancel to command to cancel this action."
         #update.effective_message.reply_text(errorMessage)
 
